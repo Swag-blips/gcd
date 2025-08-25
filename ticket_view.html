@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ground Control Dev - Ticket View</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Martian+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --space-dust: #161616; --hi-viz: #F7FF00; --concrete: #F7F7F7; --steel: #B9B9B9; --slate: #505050;
+            --bg-primary: var(--concrete); --bg-card: #FFFFFF; --text-primary: var(--space-dust); --text-secondary: var(--slate);
+            --border-light: var(--steel); --font-headline: 'Martian Mono', monospace; --font-body: 'JetBrains Mono', monospace;
+            --shadow-card: 0 4px 6px -1px rgba(22,22,22,0.1), 0 2px 4px -1px rgba(22,22,22,0.06);
+            --amber: #FFBF00; --green: #2ECC40; --blue: #0074D9; --red: #FF4136;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: var(--font-body); background: var(--bg-primary); color: var(--text-primary); line-height: 1.6; padding: 40px; }
+        .container { max-width: 1400px; margin: 0 auto; width: 100%; }
+
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .title-group { display: flex; flex-direction: column; gap: 6px; }
+        .ticket-title { font-family: var(--font-headline); font-size: 28px; font-weight: 600; text-transform: uppercase; }
+        .ticket-meta { font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+        .header-actions { display: flex; gap: 10px; }
+        .btn { padding: 10px 16px; border: 1px solid var(--steel); background: var(--bg-card); color: var(--text-primary); font-size: 12px; font-weight: 600; text-transform: uppercase; cursor: pointer; transition: 0.2s; }
+        .btn:hover { background: #f5f5f5; }
+        .btn:focus { outline: 2px solid var(--hi-viz); outline-offset: 2px; }
+        .btn-primary { background: var(--hi-viz); color: var(--space-dust); border-color: var(--space-dust); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2), inset 0 -2px 2px rgba(0,0,0,0.3); }
+        .btn-primary:hover { background: #E6E600; transform: translateY(-1px); }
+        .btn-primary { background: var(--hi-viz); color: var(--space-dust); border-color: var(--space-dust); }
+        .btn-primary:hover { background: #E6E600; transform: translateY(-1px); }
+
+        .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+        .summary-card { background: var(--bg-card); border: 1px solid var(--steel); padding: 16px; transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; }
+        .summary-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 6px; }
+        .summary-value { font-size: 14px; font-weight: 600; }
+        .summary-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-card); border-color: var(--hi-viz); }
+
+        .section-header { font-size: 16px; font-weight: 600; text-transform: uppercase; margin: 24px 0 12px; }
+        .section-header::before { content: "[ "; color: var(--steel); }
+        .section-header::after { content: " ]"; color: var(--steel); }
+
+        .steps-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .hint { font-size: 12px; color: var(--text-secondary); }
+
+        .steps-list { display: flex; flex-direction: column; gap: 12px; }
+        .step-card { background: var(--bg-card); border: 1px solid var(--steel); padding: 12px; display: grid; grid-template-columns: 24px 1fr auto; gap: 12px; align-items: start; transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; position: relative; }
+        .step-card.blocker { box-shadow: 0 0 0 2px rgba(255,191,0,0.6) inset; }
+        .step-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-card); border-color: var(--hi-viz); }
+        .step-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: transparent; transition: background 0.2s ease; }
+        .step-card:hover::before { background: var(--hi-viz); }
+        .drag { cursor: grab; color: var(--text-secondary); user-select: none; padding-top: 4px; }
+        .step-content { display: flex; flex-direction: column; gap: 8px; }
+        .step-title { font-weight: 700; font-size: 14px; }
+        .step-desc { font-size: 12px; color: var(--text-secondary); }
+        .step-fields { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+        .field { display: flex; flex-direction: column; gap: 4px; }
+        .label { font-size: 10px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); }
+        .input, .select, .date, .status { padding: 8px 10px; border: 1px solid var(--steel); background: var(--bg-card); font-family: var(--font-body); font-size: 12px; }
+        .chip { display: inline-block; padding: 4px 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+        .chip-blocker { background: var(--amber); color: var(--space-dust); }
+        .chip-status { background: #e8e8e8; color: var(--space-dust); }
+
+        .step-actions { display: flex; gap: 8px; }
+        .step-actions .btn { padding: 6px 10px; font-size: 11px; }
+
+        .note { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+
+        /* Modals */
+        .modal { display: none; position: fixed; z-index: 1001; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background: rgba(22,22,22,0.8); backdrop-filter: blur(6px); }
+        .modal-content { background: var(--bg-card); border: 1px solid var(--steel); width: 90%; max-width: 720px; margin: 8% auto; padding: 20px; position: relative; }
+        .modal-title { font-family: var(--font-headline); font-size: 18px; text-transform: uppercase; margin-bottom: 12px; }
+        .close-modal { position: absolute; right: 16px; top: 10px; font-size: 26px; cursor: pointer; color: var(--text-secondary); }
+        .modal-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+        .modal-row.full { grid-template-columns: 1fr; }
+        .textarea { min-height: 120px; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+
+        /* Toasts */
+        .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1100; display: flex; flex-direction: column; gap: 10px; }
+        .toast { background: #2a2a2a; border-left: 4px solid var(--hi-viz); color: var(--concrete); padding: 12px 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.4); transform: translateX(calc(100% + 20px)); transition: all 0.4s cubic-bezier(0.25,1,0.5,1); }
+        .toast.show { transform: translateX(0); }
+
+        /* Assignment list */
+        .assign-list { max-height: 280px; overflow: auto; border: 1px solid var(--steel); }
+        .assign-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--steel); cursor: pointer; }
+        .assign-item:hover { background: var(--hi-viz); color: var(--space-dust); }
+
+        @media (max-width: 960px) { .step-fields { grid-template-columns: 1fr 1fr; } .summary { grid-template-columns: 1fr 1fr; } }
+        /* Drag visual */
+        .drag-over { border-color: var(--hi-viz) !important; box-shadow: 0 0 0 2px var(--hi-viz) inset; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="title-group">
+                <div class="ticket-title" id="ticket-title">Ticket</div>
+                <div class="ticket-meta" id="ticket-meta">ID: — • Client: — • Type: — • Priority: —</div>
+            </div>
+            <div class="header-actions">
+                <button class="btn" id="btn-regenerate">Regenerate Steps</button>
+                <button class="btn" id="btn-export">Export</button>
+                <button class="btn" id="btn-close">Close Ticket</button>
+                <button class="btn btn-primary" id="btn-proceed">Proceed</button>
+            </div>
+        </div>
+
+        <div class="summary">
+            <div class="summary-card"><div class="summary-title">Ticket ID</div><div class="summary-value" id="summary-id">—</div></div>
+            <div class="summary-card"><div class="summary-title">Status</div><div class="summary-value" id="summary-status">Draft</div></div>
+            <div class="summary-card"><div class="summary-title">Client</div><div class="summary-value" id="summary-client">—</div></div>
+            <div class="summary-card"><div class="summary-title">Type</div><div class="summary-value" id="summary-type">—</div></div>
+            <div class="summary-card"><div class="summary-title">Priority</div><div class="summary-value" id="summary-priority">—</div></div>
+            <div class="summary-card"><div class="summary-title">Updated</div><div class="summary-value" id="summary-updated">—</div></div>
+        </div>
+
+        <h2 class="section-header">Resolution Plan</h2>
+        <div class="steps-toolbar">
+            <button class="btn" id="btn-add-step">+ Add Step</button>
+            <div class="hint">Drag steps to reorder. Changes save when you click Proceed.</div>
+        </div>
+        <div id="steps-list" class="steps-list"></div>
+        <div class="note">Flag blockers with reasons. Edit/Delete/Add require context to teach the system.</div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal" id="modal-blocker">
+        <div class="modal-content">
+            <span class="close-modal" data-close="modal-blocker">&times;</span>
+            <div class="modal-title">Flag Blocker</div>
+            <div class="modal-row full">
+                <div class="field"><span class="label">Reason (required)</span><textarea id="blocker-reason" class="input textarea" placeholder="Explain why this step may be blocked"></textarea></div>
+            </div>
+            <div class="modal-actions"><button class="btn" data-close="modal-blocker">Cancel</button><button class="btn btn-primary" id="save-blocker">Save</button></div>
+        </div>
+    </div>
+
+    <div class="modal" id="modal-delete">
+        <div class="modal-content">
+            <span class="close-modal" data-close="modal-delete">&times;</span>
+            <div class="modal-title">Delete Step</div>
+            <div class="modal-row full">
+                <div class="field"><span class="label">Deletion Context (required)</span><textarea id="delete-context" class="input textarea" placeholder="Why is this step being removed?"></textarea></div>
+            </div>
+            <div class="modal-actions"><button class="btn" data-close="modal-delete">Cancel</button><button class="btn btn-primary" id="confirm-delete">Delete</button></div>
+        </div>
+    </div>
+
+    <div class="modal" id="modal-edit">
+        <div class="modal-content">
+            <span class="close-modal" data-close="modal-edit">&times;</span>
+            <div class="modal-title">Edit Step (LLM Regenerate)</div>
+            <div class="modal-row full">
+                <div class="field"><span class="label">Edit Context (required)</span><textarea id="edit-context" class="input textarea" placeholder="Describe the change you want. The AI will regenerate the step."></textarea></div>
+            </div>
+            <div class="modal-actions"><button class="btn" data-close="modal-edit">Cancel</button><button class="btn btn-primary" id="confirm-edit">Regenerate</button></div>
+        </div>
+    </div>
+
+    <div class="modal" id="modal-add">
+        <div class="modal-content">
+            <span class="close-modal" data-close="modal-add">&times;</span>
+            <div class="modal-title">Add Step</div>
+            <div class="modal-row full">
+                <div class="field"><span class="label">Title</span><input type="text" id="add-title" class="input" placeholder="Step title"></div>
+            </div>
+            <div class="modal-row full">
+                <div class="field"><span class="label">Description</span><textarea id="add-desc" class="input textarea" placeholder="Step description"></textarea></div>
+            </div>
+            <div class="modal-row">
+                <div class="field"><span class="label">Person Tag</span><select id="add-tag" class="select"></select></div>
+                <div class="field"><span class="label">Due Date</span><input type="date" id="add-due" class="date"></div>
+            </div>
+            <div class="modal-row full">
+                <div class="field"><span class="label">Addition Context (required)</span><textarea id="add-context" class="input textarea" placeholder="Why is this step being added?"></textarea></div>
+            </div>
+            <div class="modal-actions"><button class="btn" data-close="modal-add">Cancel</button><button class="btn btn-primary" id="confirm-add">Add Step</button></div>
+        </div>
+    </div>
+
+    <div class="modal" id="modal-assign">
+        <div class="modal-content">
+            <span class="close-modal" data-close="modal-assign">&times;</span>
+            <div class="modal-title">Assign To</div>
+            <div class="modal-row full">
+                <div class="field"><span class="label">Candidates</span><div id="assign-list" class="assign-list"></div></div>
+            </div>
+            <div class="modal-actions"><button class="btn" data-close="modal-assign">Close</button></div>
+        </div>
+    </div>
+
+    <div class="modal" id="modal-proceed">
+        <div class="modal-content">
+            <span class="close-modal" data-close="modal-proceed">&times;</span>
+            <div class="modal-title">Confirm Proceed</div>
+            <div class="modal-row full">
+                <div class="field"><span class="label">Confirmation</span>
+                    <div class="hint">Proceed will save order and changes, flag this ticket plan as accurate, and record learning context for future generation.</div>
+                </div>
+            </div>
+            <div class="modal-actions"><button class="btn" data-close="modal-proceed">Cancel</button><button class="btn btn-primary" id="confirm-proceed">Proceed</button></div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // Utility: Toast
+        const toastContainer = document.getElementById('toast-container');
+        function showToast(message) {
+            const t = document.createElement('div'); t.className = 'toast'; t.textContent = message; toastContainer.appendChild(t);
+            setTimeout(()=>t.classList.add('show'),10); setTimeout(()=>{ t.classList.remove('show'); setTimeout(()=>t.remove(),400); },3000);
+        }
+
+        // Parse query
+        function getParam(name) { const p = new URLSearchParams(window.location.search); return p.get(name); }
+
+        // Person tag categories (30+ including contractors, client, landlord, council, utilities, etc.)
+        const PERSON_TAGS = [
+            'Client Contact','Client Finance','Client Facilities Lead','Client IT/Low Voltage',
+            'Landlord PM','Landlord Legal','Landlord Building Ops',
+            'Local Council - Permits','Local Council - Fire Dept','Local Council - Health Dept','Local Council - Building Inspection','Local Council - Zoning Board','Environmental Agency','Utility - Power','Utility - Water','Utility - Gas','Utility - Telecom',
+            'Contractor - HVAC','Contractor - Plumbing','Contractor - Electrical','Contractor - Carpentry','Contractor - Roofing','Contractor - General Contractor','Contractor - Security Systems','Contractor - Fire Protection','Contractor - Elevator','Contractor - Glass/Windows','Contractor - Painting','Contractor - Flooring','Contractor - Concrete','Contractor - Landscaping','Contractor - Pest Control','Contractor - Cleaning','Contractor - Mechanical','Contractor - Controls/BMS','Contractor - Data Cabling','Contractor - Structural Engineer','Contractor - Civil Engineer'
+        ];
+
+        // Mock candidates by tag
+        const CANDIDATES = {};
+        PERSON_TAGS.forEach((tag,i)=>{
+            const base = tag.split(' - ').pop();
+            CANDIDATES[tag] = [
+                { id: `${tag}-1`, name: `${base} Co. ${i+1}`, rating: (3 + (i%3)) + '.0', availability: 'Available' },
+                { id: `${tag}-2`, name: `${base} Experts ${i+2}`, rating: (3 + ((i+1)%3)) + '.0', availability: 'Busy' }
+            ];
+        });
+
+        // Mock ticket from seed
+        const TICKET = {
+            id: getParam('id') || 'REQ-XXXX', title: 'Ticket Details', client: 'A Client', type: 'Maintenance', priority: 'Medium', status: 'Draft',
+            updatedAt: new Date().toLocaleString(),
+        };
+
+        // Initial LLM-generated steps (mock)
+        let steps = [
+            { id: 's1', title: 'Initial Assessment', description: 'Review reported issue and confirm scope.', tag: 'Client Facilities Lead', assignedTo: '', due: '', status: 'Not Started', blocker: null },
+            { id: 's2', title: 'Dispatch HVAC Contractor', description: 'Engage HVAC vendor to inspect equipment.', tag: 'Contractor - HVAC', assignedTo: '', due: '', status: 'Not Started', blocker: null },
+            { id: 's3', title: 'Obtain Work Permit', description: 'Secure necessary permits from local authorities.', tag: 'Local Council - Permits', assignedTo: '', due: '', status: 'Not Started', blocker: null },
+            { id: 's4', title: 'Execution and Testing', description: 'Perform repairs and validate system performance.', tag: 'Contractor - Mechanical', assignedTo: '', due: '', status: 'Not Started', blocker: null }
+        ];
+
+        // DOM refs
+        const elTitle = document.getElementById('ticket-title');
+        const elMeta = document.getElementById('ticket-meta');
+        const elSumId = document.getElementById('summary-id');
+        const elSumStatus = document.getElementById('summary-status');
+        const elSumClient = document.getElementById('summary-client');
+        const elSumType = document.getElementById('summary-type');
+        const elSumPriority = document.getElementById('summary-priority');
+        const elSumUpdated = document.getElementById('summary-updated');
+        const stepsList = document.getElementById('steps-list');
+
+        function hydrateHeader() {
+            elTitle.textContent = `Ticket ${TICKET.id}`;
+            elMeta.textContent = `ID: ${TICKET.id} • Client: ${TICKET.client} • Type: ${TICKET.type} • Priority: ${TICKET.priority}`;
+            elSumId.textContent = TICKET.id; elSumStatus.textContent = TICKET.status; elSumClient.textContent = TICKET.client;
+            elSumType.textContent = TICKET.type; elSumPriority.textContent = TICKET.priority; elSumUpdated.textContent = TICKET.updatedAt;
+        }
+
+        // Render steps
+        function renderSteps() {
+            stepsList.innerHTML = steps.map((s, idx) => {
+                const blockerChip = s.blocker ? `<span class="chip chip-blocker">BLOCKER</span>` : '';
+                return `
+                <div class="step-card ${s.blocker ? 'blocker' : ''}" draggable="true" data-id="${s.id}" data-index="${idx}">
+                    <div class="drag" title="Drag to reorder">⋮⋮</div>
+                    <div class="step-content">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <div class="step-title">${idx+1}. ${s.title}</div>
+                            ${blockerChip}
+                        </div>
+                        <div class="step-desc">${s.description}</div>
+                        <div class="step-fields">
+                            <div class="field">
+                                <span class="label">Person Tag</span>
+                                <select class="select step-tag">
+                                    ${PERSON_TAGS.map(t=>`<option value="${t}" ${t===s.tag?'selected':''}>${t}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="field">
+                                <span class="label">Assigned To</span>
+                                <div style="display:flex; gap:6px;">
+                                    <select class="select step-assignee">
+                                        ${buildAssigneeOptions(s.tag, s.assignedTo)}
+                                    </select>
+                                    <button class="btn step-assign-btn">Find</button>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <span class="label">Due Date</span>
+                                <input type="date" class="date step-due" value="${s.due || ''}">
+                            </div>
+                            <div class="field">
+                                <span class="label">Status</span>
+                                <select class="select step-status">
+                                    ${['Not Started','In Progress','Done','Skipped'].map(st=>`<option value="${st}" ${st===s.status?'selected':''}>${st}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="field">
+                                <span class="label">Blocker</span>
+                                <button class="btn step-blocker-btn">${s.blocker ? 'Edit' : 'Flag'} Blocker</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-actions">
+                        <button class="btn step-edit">Edit</button>
+                        <button class="btn step-delete">Delete</button>
+                    </div>
+                </div>`;
+            }).join('');
+
+            // Attach events per step
+            stepsList.querySelectorAll('.step-card').forEach(card => {
+                const index = Number(card.getAttribute('data-index'));
+                const s = steps[index];
+                // Drag & drop
+                card.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', index); });
+                card.addEventListener('dragover', e => { e.preventDefault(); card.classList.add('drag-over'); });
+                card.addEventListener('dragleave', () => { card.classList.remove('drag-over'); });
+                card.addEventListener('drop', e => {
+                    e.preventDefault(); card.classList.remove('drag-over');
+                    const from = Number(e.dataTransfer.getData('text/plain')); const to = index;
+                    if (from === to) return; const moved = steps.splice(from,1)[0]; steps.splice(to,0,moved); renderSteps();
+                });
+                // Tag change updates assignee options
+                card.querySelector('.step-tag').addEventListener('change', ev => {
+                    s.tag = ev.target.value; s.assignedTo = '';
+                    const sel = card.querySelector('.step-assignee'); sel.innerHTML = buildAssigneeOptions(s.tag, '');
+                });
+                // Assignee change
+                card.querySelector('.step-assignee').addEventListener('change', ev => { s.assignedTo = ev.target.value; });
+                // Find (open assign modal)
+                card.querySelector('.step-assign-btn').addEventListener('click', () => openAssignModal(index));
+                // Due date
+                card.querySelector('.step-due').addEventListener('change', ev => { s.due = ev.target.value; });
+                // Status
+                card.querySelector('.step-status').addEventListener('change', ev => { s.status = ev.target.value; });
+                // Blocker
+                card.querySelector('.step-blocker-btn').addEventListener('click', () => openBlockerModal(index));
+                // Edit/Delete
+                card.querySelector('.step-edit').addEventListener('click', () => openEditModal(index));
+                card.querySelector('.step-delete').addEventListener('click', () => openDeleteModal(index));
+            });
+        }
+
+        function buildAssigneeOptions(tag, selected) {
+            const arr = CANDIDATES[tag] || [];
+            const options = ['<option value="">Unassigned</option>'].concat(arr.map(a=>`<option value="${a.name}" ${a.name===selected?'selected':''}>${a.name} • ⭐${a.rating} • ${a.availability}</option>`));
+            return options.join('');
+        }
+
+        // Modal helpers
+        function openModal(id) { document.getElementById(id).style.display = 'block'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        document.querySelectorAll('.close-modal').forEach(x=>x.addEventListener('click', e=> closeModal(e.target.getAttribute('data-close')) ));
+        window.addEventListener('click', e => { if (e.target.classList.contains('modal')) closeModal(e.target.id); });
+
+        // Blocker flow
+        let activeIndex = -1;
+        function openBlockerModal(index) { activeIndex = index; document.getElementById('blocker-reason').value = steps[index].blocker?.reason || ''; openModal('modal-blocker'); }
+        document.getElementById('save-blocker').addEventListener('click', () => {
+            const val = document.getElementById('blocker-reason').value.trim(); if (!val) { showToast('Reason required'); return; }
+            steps[activeIndex].blocker = { reason: val, ts: Date.now() }; closeModal('modal-blocker'); renderSteps();
+        });
+
+        // Delete flow
+        function openDeleteModal(index) { activeIndex = index; document.getElementById('delete-context').value=''; openModal('modal-delete'); }
+        document.getElementById('confirm-delete').addEventListener('click', () => {
+            const ctx = document.getElementById('delete-context').value.trim(); if (!ctx) { showToast('Deletion context required'); return; }
+            // learn stub: record deletion
+            console.log('LEARN_DELETE', { step: steps[activeIndex], context: ctx });
+            steps.splice(activeIndex,1); closeModal('modal-delete'); renderSteps();
+        });
+
+        // Edit flow
+        function openEditModal(index) { activeIndex = index; document.getElementById('edit-context').value=''; openModal('modal-edit'); }
+        document.getElementById('confirm-edit').addEventListener('click', () => {
+            const ctx = document.getElementById('edit-context').value.trim(); if (!ctx) { showToast('Edit context required'); return; }
+            // LLM regenerate stub: simulate mutation based on context
+            const s = steps[activeIndex];
+            s.title = s.title + ' (refined)'; s.description = s.description + `\nUpdate: ${ctx}`; console.log('LEARN_EDIT', { step: s, context: ctx });
+            closeModal('modal-edit'); renderSteps();
+        });
+
+        // Add flow
+        document.getElementById('btn-add-step').addEventListener('click', () => { populateTagSelect('add-tag'); document.getElementById('add-title').value=''; document.getElementById('add-desc').value=''; document.getElementById('add-context').value=''; document.getElementById('add-due').value=''; openModal('modal-add'); });
+        function populateTagSelect(id) {
+            const sel = document.getElementById(id); sel.innerHTML = PERSON_TAGS.map(t=>`<option value="${t}">${t}</option>`).join('');
+        }
+        document.getElementById('confirm-add').addEventListener('click', () => {
+            const title = document.getElementById('add-title').value.trim();
+            const desc = document.getElementById('add-desc').value.trim();
+            const tag = document.getElementById('add-tag').value;
+            const due = document.getElementById('add-due').value;
+            const ctx = document.getElementById('add-context').value.trim();
+            if (!title || !desc || !ctx) { showToast('Title, description, and addition context are required'); return; }
+            const newStep = { id: 's' + (Date.now()), title, description: desc, tag, assignedTo: '', due, status: 'Not Started', blocker: null };
+            console.log('LEARN_ADD', { step: newStep, context: ctx });
+            steps.push(newStep); closeModal('modal-add'); renderSteps();
+        });
+
+        // Assign flow
+        let assignIndex = -1;
+        function openAssignModal(index) {
+            assignIndex = index; const s = steps[index]; const list = document.getElementById('assign-list');
+            const candidates = CANDIDATES[s.tag] || [];
+            list.innerHTML = candidates.length ? candidates.map(c=>`<div class="assign-item" data-id="${c.id}"><div>${c.name}</div><div>⭐${c.rating} • ${c.availability}</div></div>`).join('') : '<div class="assign-item">No candidates</div>';
+            list.querySelectorAll('.assign-item').forEach(it=>{
+                const id = it.getAttribute('data-id'); if (!id) return;
+                it.addEventListener('click', () => { const c = candidates.find(x=>x.id===id); steps[assignIndex].assignedTo = c.name; closeModal('modal-assign'); renderSteps(); });
+            });
+            openModal('modal-assign');
+        }
+
+        // Proceed
+        document.getElementById('btn-proceed').addEventListener('click', () => openModal('modal-proceed'));
+        document.getElementById('confirm-proceed').addEventListener('click', () => {
+            // Save order + plan accuracy + learn contexts
+            console.log('PROCEED_SAVE', { ticket: TICKET, steps });
+            closeModal('modal-proceed'); showToast('Plan saved and flagged as accurate. Learning updated.');
+        });
+
+        // Header actions stubs
+        document.getElementById('btn-regenerate').addEventListener('click', ()=>{ showToast('Regenerating steps (demo)...'); console.log('REGENERATE_REQUEST', { ticket: TICKET, steps }); });
+        document.getElementById('btn-export').addEventListener('click', ()=>{ showToast('Exported (demo)'); });
+        document.getElementById('btn-close').addEventListener('click', ()=>{ showToast('Ticket closed (demo)'); TICKET.status='Closed'; elSumStatus.textContent='Closed'; });
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => { hydrateHeader(); renderSteps(); });
+    </script>
+</body>
+</html> 
