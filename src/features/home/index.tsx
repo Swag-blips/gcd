@@ -267,13 +267,13 @@ const Home = () => {
     }`;
   };
 
-  const getPriorityClass = (priority: string) => {
-    return `priority-${priority.toLowerCase()}`;
-  };
+  // const getPriorityClass = (priority: string) => {
+  //   return `priority-${priority.toLowerCase()}`;
+  // };
 
-  const getTypeClass = (type: string) => {
-    return `type-${type.toLowerCase().replace("&", "and").replace(/\s+/g, "")}`;
-  };
+  // const getTypeClass = (type: string) => {
+  //   return `type-${type.toLowerCase().replace("&", "and").replace(/\s+/g, "")}`;
+  // };
 
   const handleRowClick = (id: string) => {
     console.log("Routing to ticket view:", id);
