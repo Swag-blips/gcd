@@ -520,7 +520,7 @@ const Home = () => {
             <div className="modal-row full">
               <span className="label">Ticket Type</span>
               <div className="selection-card-grid">
-                {["EH&S", "Maintenance", "Construction", "Other"].map(
+                {["Maintenance", "Construction", "EH&S", "Other"].map(
                   (type) => (
                     <div
                       key={type}
