@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import "./styles.css";
 
@@ -14,13 +14,30 @@ interface Step {
 }
 
 interface Ticket {
-  id: string;
+  ticket_id: string;
   title: string;
-  client: string;
-  type: string;
-  priority: string;
-  status: string;
+  client_name: string;
+  ticket_type: string;
+  issue_priority: string;
+  issue_status: string;
   updatedAt: string;
+}
+
+async function fetchTicketMetadata(
+  apiKey: string,
+  ticketId: string
+): Promise<any> {
+  const response = await fetch(
+    `/gcd/fetch-ticket-metadata?ticket_id=${encodeURIComponent(ticketId)}`,
+    {
+      method: "GET",
+      headers: {
+        "x-api-key": apiKey,
+        Accept: "application/json",
+      },
+    }
+  );
+  return response.json();
 }
 
 const PERSON_TAGS = [
@@ -95,19 +112,26 @@ export const Ticket = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  // Mock ticket from seed
-  const [ticket] = useState<Ticket>({
-    id: id || "REQ-XXXX",
-    title: "Ticket Details",
-    client: "A Client",
-    type: "Maintenance",
-    priority: "Medium",
-    status: "Draft",
-    updatedAt: new Date().toLocaleString(),
-  });
+  const [ticket, setTicket] = useState<Ticket | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!id) return;
+      try {
+        const apiKey = import.meta.env.VITE_X_API_KEY;
+        const result = await fetchTicketMetadata(apiKey, id);
+        console.log("result", result);
+        setTicket(result);
+      } catch (error) {
+        setTicket(null);
+      }
+    };
+    fetchData();
+  }, [id]);
 
   // Initial LLM-generated steps (mock)
   const [steps, setSteps] = useState<Step[]>([
+    // TODO: Replace with API data if available
     {
       id: "s1",
       title: "Initial Assessment",
@@ -391,10 +415,11 @@ export const Ticket = () => {
           <button className="ticket-back-btn" onClick={() => navigate("/")}>
             ← Back to Tickets
           </button>
-          <div className="ticket-title">Ticket {ticket.id}</div>
+          <div className="ticket-title">Ticket {ticket?.ticket_id || "—"}</div>
           <div className="ticket-meta">
-            ID: {ticket.id} • Client: {ticket.client} • Type: {ticket.type} •
-            Priority: {ticket.priority}
+            ID: {ticket?.ticket_id || "—"} • Client:{" "}
+            {ticket?.client_name || "—"} • Type: {ticket?.ticket_type || "—"} •
+            Priority: {ticket?.issue_priority || "—"}
           </div>
         </div>
         <div className="ticket-header-actions">
@@ -419,27 +444,35 @@ export const Ticket = () => {
       <div className="ticket-summary">
         <div className="ticket-summary-card">
           <div className="ticket-summary-title">Ticket ID</div>
-          <div className="ticket-summary-value">{ticket.id}</div>
+          <div className="ticket-summary-value">{ticket?.ticket_id || "—"}</div>
         </div>
         <div className="ticket-summary-card">
           <div className="ticket-summary-title">Status</div>
-          <div className="ticket-summary-value">{ticket.status}</div>
+          <div className="ticket-summary-value">
+            {ticket?.issue_status || "—"}
+          </div>
         </div>
         <div className="ticket-summary-card">
           <div className="ticket-summary-title">Client</div>
-          <div className="ticket-summary-value">{ticket.client}</div>
+          <div className="ticket-summary-value">
+            {ticket?.client_name || "—"}
+          </div>
         </div>
         <div className="ticket-summary-card">
           <div className="ticket-summary-title">Type</div>
-          <div className="ticket-summary-value">{ticket.type}</div>
+          <div className="ticket-summary-value">
+            {ticket?.ticket_type || "—"}
+          </div>
         </div>
         <div className="ticket-summary-card">
           <div className="ticket-summary-title">Priority</div>
-          <div className="ticket-summary-value">{ticket.priority}</div>
+          <div className="ticket-summary-value">
+            {ticket?.issue_priority || "—"}
+          </div>
         </div>
         <div className="ticket-summary-card">
           <div className="ticket-summary-title">Updated</div>
-          <div className="ticket-summary-value">{ticket.updatedAt}</div>
+          <div className="ticket-summary-value">{ticket?.updatedAt || "—"}</div>
         </div>
       </div>
 

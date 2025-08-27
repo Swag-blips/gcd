@@ -1,167 +1,57 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./styles.css";
+import { CreateModal } from "../components/CreateModal";
 
-interface Ticket {
+export interface Ticket {
   id: string;
   title: string;
-  type: string;
+  ticket_type: string;
   client: string;
-  status: string;
-  priority: string;
+  ticket_id: string;
+  client_name: string;
+  issue_status: string;
+  issue_priority: string;
   resolutionSteps: string;
+}
+
+export async function fetchAllTickets(apiKey: string): Promise<any> {
+  const response = await fetch("/gcd/fetch-all-tickets", {
+    method: "GET",
+    headers: {
+      "x-api-key": apiKey,
+      Accept: "application/json",
+    },
+  });
+  return response.json();
 }
 
 const Home = () => {
   const navigate = useNavigate();
 
-  // Sample data seed (includes title and resolutionSteps for search)
-  const [tickets] = useState<Ticket[]>([
-    {
-      id: "REQ-3105",
-      title: "Emergency Generator Maintenance",
-      type: "Maintenance",
-      client: "Apex Innovations",
-      status: "New",
-      priority: "High",
-      resolutionSteps:
-        "Dispatch technician; inspect generator; replace oil; test load.",
-    },
-    {
-      id: "REQ-3104",
-      title: "Water leak in main lobby",
-      type: "Maintenance",
-      client: "Quantum Dynamics",
-      status: "New",
-      priority: "High",
-      resolutionSteps:
-        "Shut off valve; place warning signs; call plumber; dry carpets.",
-    },
-    {
-      id: "REQ-2980",
-      title: "HVAC Upgrade Proposal",
-      type: "Construction",
-      client: "Apex Innovations",
-      status: "Pending Approval",
-      priority: "Medium",
-      resolutionSteps: "RFQ to vendors; review bids; approve plan; schedule.",
-    },
-    {
-      id: "REQ-3001",
-      title: "Server Room Cooling Failure",
-      type: "EH&S",
-      client: "Sky Corp Tower",
-      status: "In Progress",
-      priority: "High",
-      resolutionSteps:
-        "Escalate to on-call; temporary portable AC; diagnose AHU.",
-    },
-    {
-      id: "REQ-2955",
-      title: "Fire Suppression System Test",
-      type: "EH&S",
-      client: "Quantum Dynamics",
-      status: "In Progress",
-      priority: "Medium",
-      resolutionSteps:
-        "Notify occupants; schedule test; log results; reset system.",
-    },
-    {
-      id: "REQ-2850",
-      title: "Rooftop Antenna Installation",
-      type: "Construction",
-      client: "Apex Innovations",
-      status: "Pending Approval",
-      priority: "Medium",
-      resolutionSteps:
-        "Engineer review; landlord approval; safety plan; install.",
-    },
-    {
-      id: "REQ-3011",
-      title: "Exterior Window Cleaning",
-      type: "Other",
-      client: "Sky Corp Tower",
-      status: "Pending Approval",
-      priority: "Low",
-      resolutionSteps:
-        "Get quotes; schedule lift; notify building; perform work.",
-    },
-    {
-      id: "REQ-3120",
-      title: "Safety Audit - West Warehouse",
-      type: "EH&S",
-      client: "Bio-Genetics Inc.",
-      status: "Draft",
-      priority: "Medium",
-      resolutionSteps:
-        "Site walk; checklist; corrective actions; report to client.",
-    },
-    {
-      id: "REQ-3121",
-      title: "Replace Lobby Lighting",
-      type: "Maintenance",
-      client: "Sky Corp Tower",
-      status: "Draft",
-      priority: "Low",
-      resolutionSteps:
-        "Inventory bulbs; schedule electrician; replace; dispose safely.",
-    },
-    {
-      id: "REQ-3122",
-      title: "Lab Fume Hood Calibration",
-      type: "Maintenance",
-      client: "Quantum Dynamics",
-      status: "New",
-      priority: "High",
-      resolutionSteps: "Calibrate sensors; verify airflow; document results.",
-    },
-    {
-      id: "REQ-3123",
-      title: "Parking Gate Repair",
-      type: "Maintenance",
-      client: "Apex Innovations",
-      status: "In Progress",
-      priority: "Medium",
-      resolutionSteps: "Diagnose motor; replace belt; test access control.",
-    },
-    {
-      id: "REQ-3124",
-      title: "Floor 3 Office Reconfiguration",
-      type: "Construction",
-      client: "Sky Corp Tower",
-      status: "Pending Approval",
-      priority: "Medium",
-      resolutionSteps: "Space plan; contractor bids; schedule night work.",
-    },
-    {
-      id: "REQ-3125",
-      title: "Annual Elevator Inspection",
-      type: "EH&S",
-      client: "Apex Innovations",
-      status: "New",
-      priority: "Medium",
-      resolutionSteps:
-        "Coordinate with elevator vendor; onsite inspection; report.",
-    },
-    {
-      id: "REQ-3126",
-      title: "Dock Leveler Maintenance",
-      type: "Maintenance",
-      client: "Bio-Genetics Inc.",
-      status: "Draft",
-      priority: "Low",
-      resolutionSteps: "Grease hinges; inspect hydraulics; test operations.",
-    },
-    {
-      id: "REQ-3127",
-      title: "Lobby Signage Update",
-      type: "Other",
-      client: "Quantum Dynamics",
-      status: "New",
-      priority: "Low",
-      resolutionSteps: "Design mockups; approve; fabricate; install.",
-    },
-  ]);
+  // Tickets state populated from API
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  // Fetch tickets from API on mount
+  useEffect(() => {
+    const fetchTickets = async () => {
+      try {
+        const apiKey = import.meta.env.VITE_X_API_KEY;
+        const result = await fetchAllTickets(apiKey);
+        console.log("result", result);
+
+        if (Array.isArray(result)) {
+          setTickets(result);
+        } else if (Array.isArray(result.tickets)) {
+          setTickets(result.tickets);
+        } else {
+          setTickets([]);
+        }
+      } catch (error) {
+        setTickets([]);
+      }
+    };
+    fetchTickets();
+  }, []);
 
   const [filtered, setFiltered] = useState<Ticket[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -206,9 +96,9 @@ const Home = () => {
         ticket.title.toLowerCase().includes(q) ||
         ticket.resolutionSteps.toLowerCase().includes(q);
       const clientHit = c === "all" || ticket.client === c;
-      const statusHit = s === "all" || ticket.status === s;
-      const priorityHit = p === "all" || ticket.priority === p;
-      const typeHit = t === "all" || ticket.type === t;
+      const statusHit = s === "all" || ticket.issue_status === s;
+      const priorityHit = p === "all" || ticket.issue_priority === p;
+      const typeHit = t === "all" || ticket.ticket_type === t;
       return searchHit && clientHit && statusHit && priorityHit && typeHit;
     });
 
@@ -222,9 +112,9 @@ const Home = () => {
     const pageItems = filtered.slice(start, end);
 
     return pageItems.map((ticket) => {
-      const statusClass = getStatusClass(ticket.status);
-      const priorityClass = `priority-${ticket.priority.toLowerCase()}`;
-      const typeClass = `type-${ticket.type
+      const statusClass = getStatusClass(ticket.issue_status);
+      const priorityClass = `priority-${ticket.issue_priority.toLowerCase()}`;
+      const typeClass = `type-${ticket.ticket_type
         .toLowerCase()
         .replace("&", "and")
         .replace(/\s+/g, "")}`;
@@ -233,21 +123,24 @@ const Home = () => {
         <tr
           key={ticket.id}
           data-id={ticket.id}
-          data-title={ticket.title.toLowerCase()}
-          data-steps={ticket.resolutionSteps.toLowerCase()}
-          onClick={() => handleRowClick(ticket.id)}
+          data-title={ticket.client_name.toLowerCase()}
+          onClick={() => handleRowClick(ticket.ticket_id)}
           style={{ cursor: "pointer" }}
         >
           <td>
-            <span className={`type-tag ${typeClass}`}>{ticket.type}</span>
+            <span className={`type-tag ${typeClass}`}>
+              {ticket.ticket_type}
+            </span>
           </td>
-          <td>{ticket.client}</td>
+          <td>{ticket.client_name}</td>
           <td>
-            <span className={`status-tag ${statusClass}`}>{ticket.status}</span>
+            <span className={`status-tag ${statusClass}`}>
+              {ticket.issue_status}
+            </span>
           </td>
           <td>
             <span className={`priority-tag ${priorityClass}`}>
-              {ticket.priority}
+              {ticket.issue_priority}
             </span>
           </td>
         </tr>
@@ -256,6 +149,7 @@ const Home = () => {
   };
 
   const getStatusClass = (status: string) => {
+    console.log("statuss", status);
     const statusMap: { [key: string]: string } = {
       Draft: "draft",
       New: "new",
@@ -280,15 +174,6 @@ const Home = () => {
     navigate(`/ticket/${id}`);
   };
 
-  const generateTicketId = () => {
-    const d = new Date();
-    const yy = String(d.getFullYear()).slice(-2);
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    const rand = Math.floor(1000 + Math.random() * 9000);
-    return `REQ-${yy}${mm}${dd}-${rand}`;
-  };
-
   const showToast = (message: string) => {
     const id = Date.now();
     setToasts((prev) => [...prev, { id, message, show: false }]);
@@ -307,30 +192,6 @@ const Home = () => {
         setToasts((prev) => prev.filter((t) => t.id !== id));
       }, 400);
     }, 3000);
-  };
-
-  const handleCreateTicket = () => {
-    const newTicket: Ticket = {
-      id: generateTicketId(),
-      title: context.trim().slice(0, 80) || `${selectedType} ticket`,
-      type: selectedType,
-      client: clientName.trim(),
-      status: "Draft",
-      priority: priority,
-      resolutionSteps: "",
-    };
-
-    setShowCreateModal(false);
-    setShowLoadingOverlay(true);
-
-    setTimeout(() => {
-      setShowLoadingOverlay(false);
-      // tickets.unshift(newTicket); // In a real app, this would update state
-      applyFilters();
-      showToast("Ticket created successfully. Opening ticket view...");
-      console.log("Routing to ticket view:", newTicket.id);
-      navigate(`/ticket/${newTicket.id}`);
-    }, 1800);
   };
 
   const resetCreateForm = () => {
@@ -401,7 +262,7 @@ const Home = () => {
                 onChange={(e) => setFilterStatus(e.target.value)}
               >
                 <option value="all">All</option>
-                {Array.from(new Set(tickets.map((t) => t.status)))
+                {Array.from(new Set(tickets.map((t) => t.issue_status)))
                   .sort()
                   .map((status) => (
                     <option key={status} value={status}>
@@ -418,7 +279,7 @@ const Home = () => {
                 onChange={(e) => setFilterPriority(e.target.value)}
               >
                 <option value="all">All</option>
-                {Array.from(new Set(tickets.map((t) => t.priority)))
+                {Array.from(new Set(tickets.map((t) => t.issue_priority)))
                   .sort()
                   .map((priority) => (
                     <option key={priority} value={priority}>
@@ -435,7 +296,7 @@ const Home = () => {
                 onChange={(e) => setFilterType(e.target.value)}
               >
                 <option value="all">All</option>
-                {Array.from(new Set(tickets.map((t) => t.type)))
+                {Array.from(new Set(tickets.map((t) => t.ticket_type)))
                   .sort()
                   .map((type) => (
                     <option key={type} value={type}>
@@ -503,103 +364,22 @@ const Home = () => {
 
       {/* Create Ticket Modal */}
       {showCreateModal && (
-        <div className="modal" style={{ display: "block" }}>
-          <div className="modal-content">
-            <span
-              className="close-modal"
-              onClick={() => {
-                setShowCreateModal(false);
-                resetCreateForm();
-              }}
-            >
-              &times;
-            </span>
-            <div className="modal-header">
-              <h3 className="modal-title">Create New Ticket</h3>
-            </div>
-            <div className="modal-row full">
-              <span className="label">Ticket Type</span>
-              <div className="selection-card-grid">
-                {["Maintenance", "Construction", "EH&S", "Other"].map(
-                  (type) => (
-                    <div
-                      key={type}
-                      className={`selection-card ${
-                        selectedType === type ? "selected" : ""
-                      }`}
-                      onClick={() => setSelectedType(type)}
-                    >
-                      {type}
-                    </div>
-                  )
-                )}
-              </div>
-            </div>
-            <div className="modal-row">
-              <div>
-                <label className="label" htmlFor="client-name">
-                  Client Name
-                </label>
-                <input
-                  type="text"
-                  id="client-name"
-                  className="input-field"
-                  placeholder="e.g., Apex Innovations"
-                  value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="label" htmlFor="priority-select">
-                  Priority
-                </label>
-                <select
-                  id="priority-select"
-                  className="input-field"
-                  value={priority}
-                  onChange={(e) => setPriority(e.target.value)}
-                >
-                  <option value="Medium">Medium</option>
-                  <option value="High">High</option>
-                  <option value="Low">Low</option>
-                </select>
-              </div>
-            </div>
-            <div className="modal-row full">
-              <div>
-                <label className="label" htmlFor="context-text">
-                  Context
-                </label>
-                <textarea
-                  id="context-text"
-                  className="input-field"
-                  rows={5}
-                  placeholder="Describe the issue or request..."
-                  value={context}
-                  onChange={(e) => setContext(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="modal-actions">
-              <button
-                className="btn-secondary"
-                onClick={() => {
-                  setShowCreateModal(false);
-                  resetCreateForm();
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                className="btn-primary"
-                disabled={!validateCreateForm()}
-                onClick={handleCreateTicket}
-              >
-                Submit
-              </button>
-            </div>
-          </div>
-        </div>
+        <CreateModal
+          setShowCreateModal={setShowCreateModal}
+          resetCreateForm={resetCreateForm}
+          validateCreateForm={validateCreateForm}
+          setSelectedType={setSelectedType}
+          selectedType={selectedType}
+          priority={priority}
+          clientName={clientName}
+          setClientName={setClientName}
+          context={context}
+          setContext={setContext}
+          showToast={showToast}
+          setPriority={setPriority}
+          applyFilters={applyFilters}
+          setShowLoadingOverlay={setShowLoadingOverlay}
+        />
       )}
 
       {/* Loading Overlay */}
