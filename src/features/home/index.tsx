@@ -82,7 +82,6 @@ const Home = () => {
     filterType,
     tickets,
   ]);
-
   const applyFilters = () => {
     const q = searchQuery.trim().toLowerCase();
     const c = filterClient;
@@ -91,14 +90,30 @@ const Home = () => {
     const t = filterType;
 
     const filteredTickets = tickets.filter((ticket) => {
+      const title = ticket.title ?? "";
+      const resolution = ticket.resolutionSteps ?? "";
+      const clientName = ticket.client_name ?? "";
+      const type = ticket.ticket_type ?? "";
+      const status = ticket.issue_status ?? "";
+      const priority = ticket.issue_priority ?? "";
+      const id = ticket.ticket_id ?? "";
+
+      // Search hit if query matches any field
       const searchHit =
         !q ||
-        ticket.title.toLowerCase().includes(q) ||
-        ticket.resolutionSteps.toLowerCase().includes(q);
-      const clientHit = c === "all" || ticket.client === c;
-      const statusHit = s === "all" || ticket.issue_status === s;
-      const priorityHit = p === "all" || ticket.issue_priority === p;
-      const typeHit = t === "all" || ticket.ticket_type === t;
+        title.toLowerCase().includes(q) ||
+        resolution.toLowerCase().includes(q) ||
+        clientName.toLowerCase().includes(q) ||
+        type.toLowerCase().includes(q) ||
+        status.toLowerCase().includes(q) ||
+        priority.toLowerCase().includes(q) ||
+        id.toLowerCase().includes(q);
+
+      const clientHit = c === "all" || clientName === c;
+      const statusHit = s === "all" || status === s;
+      const priorityHit = p === "all" || priority === p;
+      const typeHit = t === "all" || type === t;
+
       return searchHit && clientHit && statusHit && priorityHit && typeHit;
     });
 
