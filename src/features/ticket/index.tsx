@@ -118,7 +118,7 @@ export const Ticket = () => {
     const fetchData = async () => {
       if (!id) return;
       try {
-        const apiKey = import.meta.env.VITE_X_API_KEY;
+        const apiKey = import.meta.env.VITE_X_SUPER;
         const result = await fetchTicketMetadata(apiKey, id);
         console.log("result", result);
         setTicket(result);

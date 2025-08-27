@@ -35,7 +35,7 @@ const Home = () => {
   useEffect(() => {
     const fetchTickets = async () => {
       try {
-        const apiKey = import.meta.env.VITE_X_API_KEY;
+        const apiKey = import.meta.env.VITE_X_SUPER;
         const result = await fetchAllTickets(apiKey);
         console.log("result", result);
 

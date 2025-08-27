@@ -73,7 +73,7 @@ export const CreateModal = ({
     const ticketId = generateTicketId();
     try {
       // Replace with your actual API key
-      const apiKey = import.meta.env.VITE_X_API_KEY;
+      const apiKey = import.meta.env.VITE_X_SUPER;
 
       const response = await createTicketApi(apiKey, {
         ticket_id: ticketId,
