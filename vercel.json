@@ -1,8 +1,12 @@
 {
   "rewrites": [
     {
-      "source": "/gcd/(.*)",
-      "destination": "http://65.21.150.222:5001/gcd/$1"
+      "source": "/gcd/:match*",
+      "destination": "http://65.21.150.222:5001/gcd/:match*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
