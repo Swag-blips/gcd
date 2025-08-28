@@ -1,6 +1,30 @@
+// Regenerate Steps API
+async function regenerateSteps(
+  apiKey: string,
+  payload: {
+    ticket_id: string;
+    ticket_type: string;
+    user_description: string;
+    client_name: string;
+    issue_priority: string;
+    issue_status: string;
+  }
+): Promise<any> {
+  const response = await fetch("/gcd/regenerate-steps", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      Accept: "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  return response.json();
+}
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import "./styles.css";
+import toast from "react-hot-toast";
 
 interface Step {
   id: string;
@@ -17,10 +41,17 @@ interface Ticket {
   ticket_id: string;
   title: string;
   client_name: string;
+  user_description: string;
   ticket_type: string;
   issue_priority: string;
   issue_status: string;
-  updatedAt: string;
+  updated_at: string;
+  resolution_steps: {
+    flow_struct: {
+      workflow_steps: string;
+      parties_involved: string[];
+    }[];
+  };
 }
 
 async function fetchTicketMetadata(
@@ -129,50 +160,71 @@ export const Ticket = () => {
     fetchData();
   }, [id]);
 
-  // Initial LLM-generated steps (mock)
-  const [steps, setSteps] = useState<Step[]>([
-    // TODO: Replace with API data if available
-    {
-      id: "s1",
-      title: "Initial Assessment",
-      description: "Review reported issue and confirm scope.",
-      tag: "Client Facilities Lead",
+  // Convert flow_struct to steps format
+  const getStepsFromTicket = (ticket: Ticket | null): Step[] => {
+    if (!ticket?.resolution_steps?.flow_struct) {
+      return [
+        {
+          id: "s1",
+          title: "Initial Assessment",
+          description: "Review reported issue and confirm scope.",
+          tag: "Client Facilities Lead",
+          assignedTo: "",
+          due: "",
+          status: "Not Started",
+          blocker: null,
+        },
+        {
+          id: "s2",
+          title: "Dispatch HVAC Contractor",
+          description: "Engage HVAC vendor to inspect equipment.",
+          tag: "Contractor - HVAC",
+          assignedTo: "",
+          due: "",
+          status: "Not Started",
+          blocker: null,
+        },
+        {
+          id: "s3",
+          title: "Obtain Work Permit",
+          description: "Secure necessary permits from local authorities.",
+          tag: "Local Council - Permits",
+          assignedTo: "",
+          due: "",
+          status: "Not Started",
+          blocker: null,
+        },
+        {
+          id: "s4",
+          title: "Execution and Testing",
+          description: "Perform repairs and validate system performance.",
+          tag: "Contractor - Mechanical",
+          assignedTo: "",
+          due: "",
+          status: "Not Started",
+          blocker: null,
+        },
+      ];
+    }
+
+    return ticket.resolution_steps.flow_struct.map((flow, index) => ({
+      id: `flow-${index}`,
+      title: `Step ${index + 1}`,
+      description: flow.workflow_steps,
+      tag: PERSON_TAGS[0], // Default to first tag
       assignedTo: "",
       due: "",
       status: "Not Started",
       blocker: null,
-    },
-    {
-      id: "s2",
-      title: "Dispatch HVAC Contractor",
-      description: "Engage HVAC vendor to inspect equipment.",
-      tag: "Contractor - HVAC",
-      assignedTo: "",
-      due: "",
-      status: "Not Started",
-      blocker: null,
-    },
-    {
-      id: "s3",
-      title: "Obtain Work Permit",
-      description: "Secure necessary permits from local authorities.",
-      tag: "Local Council - Permits",
-      assignedTo: "",
-      due: "",
-      status: "Not Started",
-      blocker: null,
-    },
-    {
-      id: "s4",
-      title: "Execution and Testing",
-      description: "Perform repairs and validate system performance.",
-      tag: "Contractor - Mechanical",
-      assignedTo: "",
-      due: "",
-      status: "Not Started",
-      blocker: null,
-    },
-  ]);
+    }));
+  };
+
+  const [steps, setSteps] = useState<Step[]>([]);
+
+  // Update steps when ticket data changes
+  useEffect(() => {
+    setSteps(getStepsFromTicket(ticket));
+  }, [ticket]);
 
   const [activeIndex, setActiveIndex] = useState(-1);
   const [assignIndex, setAssignIndex] = useState(-1);
@@ -389,14 +441,87 @@ export const Ticket = () => {
   };
 
   const handleProceed = () => {
-    console.log("PROCEED_SAVE", { ticket, steps });
+    if (!ticket) return;
     setShowProceedModal(false);
-    showToast("Plan saved and flagged as accurate. Learning updated.");
+    const toastId = toast.loading("proceeding");
+    const apiKey = import.meta.env.VITE_X_SUPER;
+    // Map steps to flow_struct format
+    const flow_struct = steps.map((step) => ({
+      workflow_steps: step.description,
+      parties_involved: [step.tag],
+      due_date: step.due ? new Date(step.due).getTime() : 0,
+      status: step.status,
+      blocker: !!step.blocker,
+    }));
+    const payload = {
+      ticket_id: ticket.ticket_id,
+      ticket_type: ticket.ticket_type,
+      client_name: ticket.client_name,
+      issue_priority: ticket.issue_priority,
+      issue_status: ticket.issue_status,
+      resolution_steps: { flow_struct },
+    };
+    fetch("/gcd/proceed", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        Accept: "application/json",
+      },
+      body: JSON.stringify(payload),
+    })
+      .then((res) => res.json())
+      .then((result) => {
+        console.log("result", result);
+        if (result?.status === "success") {
+          toast.success(
+            "Plan saved and flagged as accurate. Learning updated."
+          );
+          toast.dismiss(toastId);
+        } else {
+          toast.error("Failed to save plan.");
+          toast.dismiss(toastId);
+        }
+      })
+      .catch(() => {
+        toast.error("Error saving plan.");
+        toast.dismiss(toastId);
+      });
   };
 
-  const handleRegenerate = () => {
-    showToast("Regenerating steps (demo)...");
-    console.log("REGENERATE_REQUEST", { ticket, steps });
+  const handleRegenerate = async () => {
+    if (!ticket) return;
+    showToast("Regenerating steps...");
+    try {
+      const apiKey = import.meta.env.VITE_X_SUPER;
+      const payload = {
+        ticket_id: ticket.ticket_id,
+        ticket_type: ticket.ticket_type,
+        user_description: ticket.user_description,
+        client_name: ticket.client_name,
+        issue_priority: ticket.issue_priority,
+        issue_status: ticket.issue_status,
+      };
+      console.log("payload", payload);
+      const result = await regenerateSteps(apiKey, payload);
+
+      if (result?.resolution_steps?.flow_struct) {
+        setTicket((prev) =>
+          prev ? { ...prev, resolution_steps: result.resolution_steps } : prev
+        );
+        setSteps(
+          getStepsFromTicket({
+            ...ticket,
+            resolution_steps: result.resolution_steps,
+          })
+        );
+        showToast("Steps regenerated.");
+      } else {
+        showToast("Failed to regenerate steps.");
+      }
+    } catch (error) {
+      showToast("Error regenerating steps.");
+    }
   };
 
   const handleExport = () => {
@@ -407,6 +532,10 @@ export const Ticket = () => {
     showToast("Ticket closed (demo)");
     // In a real app, this would update the ticket status
   };
+
+  const ts = 1756390688 * 1000; // Convert seconds to milliseconds
+  const date = new Date(ts);
+  console.log(date.toLocaleString()); // "8/28/2025, 3:18:08 PM" (local time)
 
   return (
     <div className="ticket-container">
@@ -472,7 +601,11 @@ export const Ticket = () => {
         </div>
         <div className="ticket-summary-card">
           <div className="ticket-summary-title">Updated</div>
-          <div className="ticket-summary-value">{ticket?.updatedAt || "—"}</div>
+          <div className="ticket-summary-value">
+            {ticket?.updated_at
+              ? new Date(Number(ticket.updated_at) * 1000).toLocaleString()
+              : "—"}
+          </div>
         </div>
       </div>
 
