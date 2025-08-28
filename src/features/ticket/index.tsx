@@ -35,6 +35,7 @@ interface Step {
   due: string;
   status: string;
   blocker: { reason: string; ts: number } | null;
+  partiesInvolved: string[];
 }
 
 interface Ticket {
@@ -50,6 +51,9 @@ interface Ticket {
     flow_struct: {
       workflow_steps: string;
       parties_involved: string[];
+      status: string;
+      blocker: boolean;
+      due_date: number;
     }[];
   };
 }
@@ -139,6 +143,19 @@ PERSON_TAGS.forEach((tag, i) => {
   ];
 });
 
+// Helper function to convert timestamp to date string for input
+const timestampToDateString = (timestamp: number): string => {
+  if (!timestamp || timestamp === 0) return "";
+  const date = new Date(timestamp);
+  return date.toISOString().split("T")[0]; // Format: YYYY-MM-DD
+};
+
+// Helper function to convert date string to timestamp
+const dateStringToTimestamp = (dateString: string): number => {
+  if (!dateString) return 0;
+  return new Date(dateString).getTime();
+};
+
 export const Ticket = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -173,6 +190,7 @@ export const Ticket = () => {
           due: "",
           status: "Not Started",
           blocker: null,
+          partiesInvolved: ["Client Facilities Lead"],
         },
         {
           id: "s2",
@@ -183,6 +201,7 @@ export const Ticket = () => {
           due: "",
           status: "Not Started",
           blocker: null,
+          partiesInvolved: ["Contractor - HVAC"],
         },
         {
           id: "s3",
@@ -193,6 +212,7 @@ export const Ticket = () => {
           due: "",
           status: "Not Started",
           blocker: null,
+          partiesInvolved: ["Local Council - Permits"],
         },
         {
           id: "s4",
@@ -203,6 +223,7 @@ export const Ticket = () => {
           due: "",
           status: "Not Started",
           blocker: null,
+          partiesInvolved: ["Contractor - Mechanical"],
         },
       ];
     }
@@ -211,11 +232,14 @@ export const Ticket = () => {
       id: `flow-${index}`,
       title: `Step ${index + 1}`,
       description: flow.workflow_steps,
-      tag: PERSON_TAGS[0], // Default to first tag
+      tag: flow.parties_involved[0] || PERSON_TAGS[0], // Use first party or default
       assignedTo: "",
-      due: "",
-      status: "Not Started",
-      blocker: null,
+      due: timestampToDateString(flow.due_date),
+      status: flow.status || "Not Started",
+      blocker: flow.blocker
+        ? { reason: "Blocker flagged in system", ts: Date.now() }
+        : null,
+      partiesInvolved: flow.parties_involved,
     }));
   };
 
@@ -351,6 +375,13 @@ export const Ticket = () => {
     setBlockerReason("");
   };
 
+  const removeBlocker = (index: number) => {
+    const newSteps = [...steps];
+    newSteps[index].blocker = null;
+    setSteps(newSteps);
+    showToast("Blocker removed");
+  };
+
   const openDeleteModal = (index: number) => {
     setActiveIndex(index);
     setDeleteContext("");
@@ -417,6 +448,7 @@ export const Ticket = () => {
       due: addDue,
       status: "Not Started",
       blocker: null,
+      partiesInvolved: [addTag],
     };
     console.log("LEARN_ADD", { step: newStep, context: addContext });
     setSteps([...steps, newStep]);
@@ -448,8 +480,8 @@ export const Ticket = () => {
     // Map steps to flow_struct format
     const flow_struct = steps.map((step) => ({
       workflow_steps: step.description,
-      parties_involved: [step.tag],
-      due_date: step.due ? new Date(step.due).getTime() : 0,
+      parties_involved: step.partiesInvolved,
+      due_date: dateStringToTimestamp(step.due),
       status: step.status,
       blocker: !!step.blocker,
     }));
@@ -532,10 +564,6 @@ export const Ticket = () => {
     showToast("Ticket closed (demo)");
     // In a real app, this would update the ticket status
   };
-
-  const ts = 1756390688 * 1000; // Convert seconds to milliseconds
-  const date = new Date(ts);
-  console.log(date.toLocaleString()); // "8/28/2025, 3:18:08 PM" (local time)
 
   return (
     <div className="ticket-container">
@@ -649,6 +677,20 @@ export const Ticket = () => {
                 )}
               </div>
               <div className="ticket-step-desc">{step.description}</div>
+
+              {/* Show blocker details if exists */}
+              {step.blocker && (
+                <div className="ticket-blocker-details">
+                  <strong>Blocker Reason:</strong> {step.blocker.reason}
+                  <br />
+                  <small>
+                    Flagged: {new Date(step.blocker.ts).toLocaleString()}
+                  </small>
+                </div>
+              )}
+
+              {/* Show parties involved */}
+
               <div className="ticket-step-fields">
                 <div className="ticket-field">
                   <span className="ticket-label">Person Tag</span>
@@ -712,12 +754,31 @@ export const Ticket = () => {
                 </div>
                 <div className="ticket-field">
                   <span className="ticket-label">Blocker</span>
-                  <button
-                    className="ticket-btn ticket-step-blocker-btn"
-                    onClick={() => openBlockerModal(idx)}
-                  >
-                    {step.blocker ? "Edit" : "Flag"} Blocker
-                  </button>
+                  <div style={{ display: "flex", gap: "6px" }}>
+                    {step.blocker ? (
+                      <>
+                        <button
+                          className="ticket-btn ticket-step-blocker-btn"
+                          onClick={() => openBlockerModal(idx)}
+                        >
+                          Edit Blocker
+                        </button>
+                        <button
+                          className="ticket-btn ticket-btn-secondary"
+                          onClick={() => removeBlocker(idx)}
+                        >
+                          Remove
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        className="ticket-btn ticket-step-blocker-btn"
+                        onClick={() => openBlockerModal(idx)}
+                      >
+                        Flag Blocker
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -754,7 +815,9 @@ export const Ticket = () => {
             >
               &times;
             </span>
-            <div className="ticket-modal-title">Flag Blocker</div>
+            <div className="ticket-modal-title">
+              {steps[activeIndex]?.blocker ? "Edit Blocker" : "Flag Blocker"}
+            </div>
             <div className="ticket-modal-row ticket-modal-row-full">
               <div className="ticket-field">
                 <span className="ticket-label">Reason (required)</span>
