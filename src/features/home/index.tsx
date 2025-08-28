@@ -251,7 +251,7 @@ const Home = () => {
     if (ticket.issue_status === "Generating")
       return toast("still generating..");
 
-    navigate(`/ticket/${ticket.id}`);
+    navigate(`/ticket/${ticket.ticket_id}`);
   };
 
   const showToast = (message: string) => {
