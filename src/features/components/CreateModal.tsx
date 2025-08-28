@@ -1,5 +1,3 @@
-import { useNavigate } from "react-router-dom";
-
 async function createTicketApi(
   apiKey: string,
   data: {
@@ -56,8 +54,6 @@ export const CreateModal = ({
   setShowLoadingOverlay,
   validateCreateForm,
 }: Props) => {
-  const navigate = useNavigate();
-
   const generateTicketId = () => {
     const d = new Date();
     const yy = String(d.getFullYear()).slice(-2);
@@ -111,7 +107,7 @@ export const CreateModal = ({
         issue_status: "Draft",
       });
       if ("status" in response) {
-        showToast("Ticket created successfully. Opening ticket view...");
+        showToast("Ticket created successfully. ");
       } else {
         showToast(
           "Failed to create ticket: " + JSON.stringify(response.detail)
