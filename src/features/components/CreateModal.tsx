@@ -34,7 +34,7 @@ type Props = {
   context: string;
   setContext: React.Dispatch<React.SetStateAction<string>>;
   showToast: (message: string) => void;
-  applyFilters: () => void;
+  setTickets: React.Dispatch<React.SetStateAction<any[]>>;
   setPriority: (data: string) => void;
   setShowLoadingOverlay: React.Dispatch<React.SetStateAction<boolean>>;
   validateCreateForm: () => boolean;
@@ -42,7 +42,7 @@ type Props = {
 
 export const CreateModal = ({
   resetCreateForm,
-  applyFilters,
+  setTickets,
   context,
   clientName,
   showToast,
@@ -71,10 +71,36 @@ export const CreateModal = ({
     setShowCreateModal(false);
     setShowLoadingOverlay(true);
     const ticketId = generateTicketId();
+    // Add ticket to table immediately with status 'Generating'
+    const newTicket = {
+      id: ticketId,
+      ticket_id: ticketId,
+      title: selectedType,
+      ticket_type: selectedType,
+      client: clientName.trim(),
+      client_name: clientName.trim(),
+      issue_status: "Generating",
+      issue_priority: priority,
+      resolutionSteps: context.trim().slice(0, 80) || `${selectedType} ticket`,
+    };
+    // Store ticketId in sessionStorage as array
+    let ids: string[] = [];
     try {
-      // Replace with your actual API key
+      ids = JSON.parse(
+        window.sessionStorage.getItem("generatingTicketIds") || "[]"
+      );
+    } catch {
+      ids = [];
+    }
+    if (!ids.includes(ticketId)) ids.push(ticketId);
+    window.sessionStorage.setItem("generatingTicketIds", JSON.stringify(ids));
+    // Add to tickets state directly
+    setTickets((prev) => [newTicket, ...prev]);
+    showToast("Ticket added to table. Generating...");
+    setShowLoadingOverlay(false);
+    // Proceed with API call as before
+    try {
       const apiKey = import.meta.env.VITE_X_SUPER;
-
       const response = await createTicketApi(apiKey, {
         ticket_id: ticketId,
         ticket_type: selectedType,
@@ -84,18 +110,14 @@ export const CreateModal = ({
         issue_priority: priority,
         issue_status: "Draft",
       });
-      setShowLoadingOverlay(false);
       if ("status" in response) {
-        applyFilters();
         showToast("Ticket created successfully. Opening ticket view...");
-        navigate(`/ticket/${ticketId}`);
       } else {
         showToast(
           "Failed to create ticket: " + JSON.stringify(response.detail)
         );
       }
     } catch (error) {
-      setShowLoadingOverlay(false);
       showToast("Error creating ticket");
     }
   };

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./styles.css";
 import { CreateModal } from "../components/CreateModal";
+import toast from "react-hot-toast";
 
 export interface Ticket {
   id: string;
@@ -27,18 +28,67 @@ export async function fetchAllTickets(apiKey: string): Promise<any> {
 }
 
 const Home = () => {
+  // Poll for tickets in session storage and update status
+  useEffect(() => {
+    const POLL_INTERVAL = 3000;
+    let poller: number;
+    const apiKey = import.meta.env.VITE_X_SUPER;
+
+    const pollTickets = async () => {
+      let ids: string[] = [];
+      try {
+        ids = JSON.parse(
+          window.sessionStorage.getItem("generatingTicketIds") || "[]"
+        );
+      } catch {
+        ids = [];
+      }
+      if (!ids.length) return;
+      for (const ticketId of ids) {
+        try {
+          const res = await fetch(
+            `/gcd/fetch-ticket-metadata?ticket_id=${encodeURIComponent(
+              ticketId
+            )}`,
+            {
+              method: "GET",
+              headers: {
+                "x-api-key": apiKey,
+                Accept: "application/json",
+              },
+            }
+          );
+          const data = await res.json();
+          if (data?.resolution_steps?.flow_struct?.length) {
+            // Update ticket status to Draft
+            setTickets((prev) =>
+              prev.map((t) =>
+                t.ticket_id === ticketId ? { ...t, issue_status: "Draft" } : t
+              )
+            );
+            // Remove ticketId from session
+            const newIds = ids.filter((id) => id !== ticketId);
+            window.sessionStorage.setItem(
+              "generatingTicketIds",
+              JSON.stringify(newIds)
+            );
+          }
+        } catch {}
+      }
+    };
+    poller = setInterval(pollTickets, POLL_INTERVAL);
+    return () => clearInterval(poller);
+  }, []);
   const navigate = useNavigate();
 
   // Tickets state populated from API
   const [tickets, setTickets] = useState<Ticket[]>([]);
-  // Fetch tickets from API on mount
+  // Fetch tickets from API on mount and listen for ticketCreated event
   useEffect(() => {
     const fetchTickets = async () => {
       try {
         const apiKey = import.meta.env.VITE_X_SUPER;
         const result = await fetchAllTickets(apiKey);
-        console.log("result", result);
-
         if (Array.isArray(result)) {
           setTickets(result);
         } else if (Array.isArray(result.tickets)) {
@@ -51,6 +101,20 @@ const Home = () => {
       }
     };
     fetchTickets();
+
+    // Listen for ticketCreated event
+    const handleTicketCreated = (e: any) => {
+      const newTicket = e.detail;
+      setTickets((prev) => {
+        // Avoid duplicates
+        if (prev.some((t) => t.ticket_id === newTicket.ticket_id)) return prev;
+        return [newTicket, ...prev];
+      });
+    };
+    window.addEventListener("ticketCreated", handleTicketCreated);
+    return () => {
+      window.removeEventListener("ticketCreated", handleTicketCreated);
+    };
   }, []);
 
   const [filtered, setFiltered] = useState<Ticket[]>([]);
@@ -139,7 +203,7 @@ const Home = () => {
           key={ticket.id}
           data-id={ticket.id}
           data-title={ticket.client_name.toLowerCase()}
-          onClick={() => handleRowClick(ticket.ticket_id)}
+          onClick={() => handleRowClick(ticket)}
           style={{ cursor: "pointer" }}
         >
           <td>
@@ -164,7 +228,6 @@ const Home = () => {
   };
 
   const getStatusClass = (status: string) => {
-    console.log("statuss", status);
     const statusMap: { [key: string]: string } = {
       Draft: "draft",
       New: "new",
@@ -184,9 +247,11 @@ const Home = () => {
   //   return `type-${type.toLowerCase().replace("&", "and").replace(/\s+/g, "")}`;
   // };
 
-  const handleRowClick = (id: string) => {
-    console.log("Routing to ticket view:", id);
-    navigate(`/ticket/${id}`);
+  const handleRowClick = (ticket: Ticket) => {
+    if (ticket.issue_status === "Generating")
+      return toast("still generating..");
+
+    navigate(`/ticket/${ticket.id}`);
   };
 
   const showToast = (message: string) => {
@@ -392,7 +457,7 @@ const Home = () => {
           setContext={setContext}
           showToast={showToast}
           setPriority={setPriority}
-          applyFilters={applyFilters}
+          setTickets={setTickets}
           setShowLoadingOverlay={setShowLoadingOverlay}
         />
       )}

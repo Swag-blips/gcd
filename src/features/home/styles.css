@@ -181,6 +181,20 @@ body {
 .status-pending {
   background: #ff851b;
 }
+.status-generating {
+  background: linear-gradient(90deg, #f7ff00 0%, #ff4136 100%);
+  color: #161616;
+  animation: pulseGen 1.2s infinite alternate;
+}
+
+@keyframes pulseGen {
+  0% {
+    box-shadow: 0 0 0 0 #f7ff00;
+  }
+  100% {
+    box-shadow: 0 0 12px 2px #ff4136;
+  }
+}
 .priority-high {
   background: #ff4136;
 }
