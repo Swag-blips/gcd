@@ -50,6 +50,7 @@ interface Ticket {
   resolution_steps: {
     flow_struct: {
       workflow_steps: string;
+      workflow_name: string;
       parties_involved: string[];
       status: string;
       blocker: boolean;
@@ -230,7 +231,7 @@ export const Ticket = () => {
 
     return ticket.resolution_steps.flow_struct.map((flow, index) => ({
       id: `flow-${index}`,
-      title: `Step ${index + 1}`,
+      title: flow.workflow_name,
       description: flow.workflow_steps,
       tag: flow.parties_involved[0] || PERSON_TAGS[0], // Use first party or default
       assignedTo: "",
@@ -565,6 +566,8 @@ export const Ticket = () => {
     // In a real app, this would update the ticket status
   };
 
+  console.log("steps", ticket)
+
   return (
     <div className="ticket-container">
       <div className="ticket-header">
@@ -668,7 +671,7 @@ export const Ticket = () => {
                 style={{ display: "flex", alignItems: "center", gap: "8px" }}
               >
                 <div className="ticket-step-title">
-                  {idx + 1}. {step.title}
+                {step.title}
                 </div>
                 {step.blocker && (
                   <span className="ticket-chip ticket-chip-blocker">
