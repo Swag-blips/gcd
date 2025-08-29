@@ -36,10 +36,10 @@ interface Ticket {
   };
 }
 
-interface Specialization {
-  id: string;
-  name: string;
-}
+// interface Specialization {
+//   id: string;
+//   name: string;
+// }
 
 async function fetchTicketMetadata(
   apiKey: string,
@@ -302,22 +302,22 @@ export const Ticket = () => {
     }, 3000);
   };
 
-  const buildAssigneeOptions = (tag: string, selected: string) => {
-    const arr = candidatesByTag[tag] || [];
-    const options = [
-      <option key="unassigned" value="">
-        Unassigned
-      </option>,
-    ];
-    arr.forEach((name, idx) => {
-      options.push(
-        <option key={idx} value={name} selected={name === selected}>
-          {name}
-        </option>
-      );
-    });
-    return options;
-  };
+  // const buildAssigneeOptions = (tag: string, selected: string) => {
+  //   const arr = candidatesByTag[tag] || [];
+  //   const options = [
+  //     <option key="unassigned" value="">
+  //       Unassigned
+  //     </option>,
+  //   ];
+  //   arr.forEach((name, idx) => {
+  //     options.push(
+  //       <option key={idx} value={name} selected={name === selected}>
+  //         {name}
+  //       </option>
+  //     );
+  //   });
+  //   return options;
+  // };
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
     e.dataTransfer.setData("text/plain", index.toString());
