@@ -1,26 +1,3 @@
-// Regenerate Steps API
-async function regenerateSteps(
-  apiKey: string,
-  payload: {
-    ticket_id: string;
-    ticket_type: string;
-    user_description: string;
-    client_name: string;
-    issue_priority: string;
-    issue_status: string;
-  }
-): Promise<any> {
-  const response = await fetch("/gcd/regenerate-steps", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      Accept: "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-  return response.json();
-}
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import "./styles.css";
@@ -59,6 +36,11 @@ interface Ticket {
   };
 }
 
+interface Specialization {
+  id: string;
+  name: string;
+}
+
 async function fetchTicketMetadata(
   apiKey: string,
   ticketId: string
@@ -75,74 +57,6 @@ async function fetchTicketMetadata(
   );
   return response.json();
 }
-
-const PERSON_TAGS = [
-  "Client Contact",
-  "Client Finance",
-  "Client Facilities Lead",
-  "Client IT/Low Voltage",
-  "Landlord PM",
-  "Landlord Legal",
-  "Landlord Building Ops",
-  "Local Council - Permits",
-  "Local Council - Fire Dept",
-  "Local Council - Health Dept",
-  "Local Council - Building Inspection",
-  "Local Council - Zoning Board",
-  "Environmental Agency",
-  "Utility - Power",
-  "Utility - Water",
-  "Utility - Gas",
-  "Utility - Telecom",
-  "Contractor - HVAC",
-  "Contractor - Plumbing",
-  "Contractor - Electrical",
-  "Contractor - Carpentry",
-  "Contractor - Roofing",
-  "Contractor - General Contractor",
-  "Contractor - Security Systems",
-  "Contractor - Fire Protection",
-  "Contractor - Elevator",
-  "Contractor - Glass/Windows",
-  "Contractor - Painting",
-  "Contractor - Flooring",
-  "Contractor - Concrete",
-  "Contractor - Landscaping",
-  "Contractor - Pest Control",
-  "Contractor - Cleaning",
-  "Contractor - Mechanical",
-  "Contractor - Controls/BMS",
-  "Contractor - Data Cabling",
-  "Contractor - Structural Engineer",
-  "Contractor - Civil Engineer",
-];
-
-// Mock candidates by tag
-const CANDIDATES: {
-  [key: string]: Array<{
-    id: string;
-    name: string;
-    rating: string;
-    availability: string;
-  }>;
-} = {};
-PERSON_TAGS.forEach((tag, i) => {
-  const base = tag.split(" - ").pop();
-  CANDIDATES[tag] = [
-    {
-      id: `${tag}-1`,
-      name: `${base} Co. ${i + 1}`,
-      rating: 3 + (i % 3) + ".0",
-      availability: "Available",
-    },
-    {
-      id: `${tag}-2`,
-      name: `${base} Experts ${i + 2}`,
-      rating: 3 + ((i + 1) % 3) + ".0",
-      availability: "Busy",
-    },
-  ];
-});
 
 // Helper function to convert timestamp to date string for input
 const timestampToDateString = (timestamp: number): string => {
@@ -162,6 +76,14 @@ export const Ticket = () => {
   const navigate = useNavigate();
 
   const [ticket, setTicket] = useState<Ticket | null>(null);
+  const [personTags, setPersonTags] = useState<string[]>([]);
+  const [candidatesByTag, setCandidatesByTag] = useState<{
+    [key: string]: string[];
+  }>({});
+  const [loadingTags, setLoadingTags] = useState(false);
+  const [loadingCandidates, setLoadingCandidates] = useState<{
+    [key: string]: boolean;
+  }>({});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -178,6 +100,84 @@ export const Ticket = () => {
     fetchData();
   }, [id]);
 
+  // Fetch person tags from API
+  useEffect(() => {
+    const fetchPersonTags = async () => {
+      setLoadingTags(true);
+      try {
+        const apiKey = import.meta.env.VITE_X_SUPER;
+        const response = await fetch("/gcd/get-specialization-list", {
+          method: "GET",
+          headers: {
+            "x-api-key": apiKey,
+            Accept: "application/json",
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log("data", data);
+          setPersonTags(data || []);
+        } else {
+          console.error("Failed to fetch person tags");
+          toast.error("Failed to load person tags");
+        }
+      } catch (error) {
+        console.error("Error fetching person tags:", error);
+        toast.error("Error loading person tags");
+      } finally {
+        setLoadingTags(false);
+      }
+    };
+
+    fetchPersonTags();
+  }, []);
+
+  // Fetch candidates for a specific tag
+  const fetchCandidatesForTag = async (tag: string) => {
+    if (candidatesByTag[tag]) return; // Already fetched
+
+    setLoadingCandidates((prev) => ({ ...prev, [tag]: true }));
+    try {
+      const apiKey = import.meta.env.VITE_X_SUPER;
+      const response = await fetch(
+        `/gcd/get-specialization-client?specialization=${encodeURIComponent(
+          tag
+        )}`,
+        {
+          method: "GET",
+          headers: {
+            "x-api-key": apiKey,
+            Accept: "application/json",
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log("data", data);
+        setCandidatesByTag((prev) => ({
+          ...prev,
+          [tag]: Array.isArray(data) ? data : [],
+        }));
+      } else {
+        console.error(`Failed to fetch candidates for tag: ${tag}`);
+        setCandidatesByTag((prev) => ({
+          ...prev,
+          [tag]: [],
+        }));
+      }
+    } catch (error) {
+      console.error(`Error fetching candidates for tag ${tag}:`, error);
+      setCandidatesByTag((prev) => ({
+        ...prev,
+        [tag]: [],
+      }));
+    } finally {
+      setLoadingCandidates((prev) => ({ ...prev, [tag]: false }));
+    }
+  };
+
   // Convert flow_struct to steps format
   const getStepsFromTicket = (ticket: Ticket | null): Step[] => {
     if (!ticket?.resolution_steps?.flow_struct) {
@@ -186,7 +186,7 @@ export const Ticket = () => {
           id: "s1",
           title: "Initial Assessment",
           description: "Review reported issue and confirm scope.",
-          tag: "Client Facilities Lead",
+          tag: personTags[0] || "Client Facilities Lead",
           assignedTo: "",
           due: "",
           status: "Not Started",
@@ -197,7 +197,8 @@ export const Ticket = () => {
           id: "s2",
           title: "Dispatch HVAC Contractor",
           description: "Engage HVAC vendor to inspect equipment.",
-          tag: "Contractor - HVAC",
+          tag:
+            personTags.find((t) => t.includes("HVAC")) || "Contractor - HVAC",
           assignedTo: "",
           due: "",
           status: "Not Started",
@@ -208,7 +209,9 @@ export const Ticket = () => {
           id: "s3",
           title: "Obtain Work Permit",
           description: "Secure necessary permits from local authorities.",
-          tag: "Local Council - Permits",
+          tag:
+            personTags.find((t) => t.includes("Permit")) ||
+            "Local Council - Permits",
           assignedTo: "",
           due: "",
           status: "Not Started",
@@ -219,7 +222,9 @@ export const Ticket = () => {
           id: "s4",
           title: "Execution and Testing",
           description: "Perform repairs and validate system performance.",
-          tag: "Contractor - Mechanical",
+          tag:
+            personTags.find((t) => t.includes("Mechanical")) ||
+            "Contractor - Mechanical",
           assignedTo: "",
           due: "",
           status: "Not Started",
@@ -233,7 +238,7 @@ export const Ticket = () => {
       id: `flow-${index}`,
       title: flow.workflow_name,
       description: flow.workflow_steps,
-      tag: flow.parties_involved[0] || PERSON_TAGS[0], // Use first party or default
+      tag: flow.parties_involved[0] || personTags[0] || "",
       assignedTo: "",
       due: timestampToDateString(flow.due_date),
       status: flow.status || "Not Started",
@@ -246,10 +251,12 @@ export const Ticket = () => {
 
   const [steps, setSteps] = useState<Step[]>([]);
 
-  // Update steps when ticket data changes
+  // Update steps when ticket data or personTags changes
   useEffect(() => {
-    setSteps(getStepsFromTicket(ticket));
-  }, [ticket]);
+    if (personTags.length > 0 || !ticket?.resolution_steps?.flow_struct) {
+      setSteps(getStepsFromTicket(ticket));
+    }
+  }, [ticket, personTags]);
 
   const [activeIndex, setActiveIndex] = useState(-1);
   const [assignIndex, setAssignIndex] = useState(-1);
@@ -296,16 +303,20 @@ export const Ticket = () => {
   };
 
   const buildAssigneeOptions = (tag: string, selected: string) => {
-    const arr = CANDIDATES[tag] || [];
-    const options = ['<option value="">Unassigned</option>'].concat(
-      arr.map(
-        (a) =>
-          `<option value="${a.name}" ${a.name === selected ? "selected" : ""}>${
-            a.name
-          } • ⭐${a.rating} • ${a.availability}</option>`
-      )
-    );
-    return options.join("");
+    const arr = candidatesByTag[tag] || [];
+    const options = [
+      <option key="unassigned" value="">
+        Unassigned
+      </option>,
+    ];
+    arr.forEach((name, idx) => {
+      options.push(
+        <option key={idx} value={name} selected={name === selected}>
+          {name}
+        </option>
+      );
+    });
+    return options;
   };
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
@@ -333,11 +344,16 @@ export const Ticket = () => {
     setSteps(newSteps);
   };
 
-  const handleTagChange = (stepIndex: number, newTag: string) => {
+  const handleTagChange = async (stepIndex: number, newTag: string) => {
     const newSteps = [...steps];
     newSteps[stepIndex].tag = newTag;
     newSteps[stepIndex].assignedTo = "";
     setSteps(newSteps);
+
+    // Fetch candidates for the new tag if not already loaded
+    if (!candidatesByTag[newTag]) {
+      await fetchCandidatesForTag(newTag);
+    }
   };
 
   const handleAssigneeChange = (stepIndex: number, newAssignee: string) => {
@@ -429,7 +445,7 @@ export const Ticket = () => {
   const openAddModal = () => {
     setAddTitle("");
     setAddDesc("");
-    setAddTag("");
+    setAddTag(personTags[0] || "");
     setAddDue("");
     setAddContext("");
     setShowAddModal(true);
@@ -456,18 +472,24 @@ export const Ticket = () => {
     setShowAddModal(false);
   };
 
-  const openAssignModal = (index: number) => {
+  const openAssignModal = async (index: number) => {
     setAssignIndex(index);
+    const tag = steps[index].tag;
+
+    // Ensure candidates are loaded for this tag
+    if (!candidatesByTag[tag]) {
+      await fetchCandidatesForTag(tag);
+    }
+
     setShowAssignModal(true);
   };
 
   const handleAssign = (candidateId: string) => {
     const s = steps[assignIndex];
-    const candidates = CANDIDATES[s.tag] || [];
-    const candidate = candidates.find((c) => c.id === candidateId);
-    if (candidate) {
+    const candidates = candidatesByTag[s.tag] || [];
+    if (candidates.includes(candidateId)) {
       const newSteps = [...steps];
-      newSteps[assignIndex].assignedTo = candidate.name;
+      newSteps[assignIndex].assignedTo = candidateId;
       setSteps(newSteps);
     }
     setShowAssignModal(false);
@@ -480,6 +502,7 @@ export const Ticket = () => {
     const apiKey = import.meta.env.VITE_X_SUPER;
     // Map steps to flow_struct format
     const flow_struct = steps.map((step) => ({
+      workflow_name: step.title,
       workflow_steps: step.description,
       parties_involved: step.partiesInvolved,
       due_date: dateStringToTimestamp(step.due),
@@ -563,10 +586,31 @@ export const Ticket = () => {
 
   const handleCloseTicket = () => {
     showToast("Ticket closed (demo)");
-    // In a real app, this would update the ticket status
   };
 
-  console.log("steps", ticket)
+  // Regenerate Steps API
+  async function regenerateSteps(
+    apiKey: string,
+    payload: {
+      ticket_id: string;
+      ticket_type: string;
+      user_description: string;
+      client_name: string;
+      issue_priority: string;
+      issue_status: string;
+    }
+  ): Promise<any> {
+    const response = await fetch("/gcd/regenerate-steps", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        Accept: "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    return response.json();
+  }
 
   return (
     <div className="ticket-container">
@@ -670,9 +714,7 @@ export const Ticket = () => {
               <div
                 style={{ display: "flex", alignItems: "center", gap: "8px" }}
               >
-                <div className="ticket-step-title">
-                {step.title}
-                </div>
+                <div className="ticket-step-title">{step.title}</div>
                 {step.blocker && (
                   <span className="ticket-chip ticket-chip-blocker">
                     BLOCKER
@@ -692,8 +734,6 @@ export const Ticket = () => {
                 </div>
               )}
 
-              {/* Show parties involved */}
-
               <div className="ticket-step-fields">
                 <div className="ticket-field">
                   <span className="ticket-label">Person Tag</span>
@@ -702,11 +742,15 @@ export const Ticket = () => {
                     value={step.tag}
                     onChange={(e) => handleTagChange(idx, e.target.value)}
                   >
-                    {PERSON_TAGS.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
+                    {loadingTags ? (
+                      <option>Loading tags...</option>
+                    ) : (
+                      personTags.map((t, index) => (
+                        <option key={index} value={t}>
+                          {t}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
                 <div className="ticket-field">
@@ -718,15 +762,27 @@ export const Ticket = () => {
                       onChange={(e) =>
                         handleAssigneeChange(idx, e.target.value)
                       }
-                      dangerouslySetInnerHTML={{
-                        __html: buildAssigneeOptions(step.tag, step.assignedTo),
-                      }}
-                    />
+                      disabled={loadingCandidates[step.tag]}
+                    >
+                      <option value="">Unassigned</option>
+                      {loadingCandidates[step.tag] ? (
+                        <option>Loading candidates...</option>
+                      ) : (
+                        (candidatesByTag[step.tag] || []).map(
+                          (candidate, index) => (
+                            <option key={index} value={candidate}>
+                              {candidate}
+                            </option>
+                          )
+                        )
+                      )}
+                    </select>
                     <button
                       className="ticket-btn ticket-step-assign-btn"
                       onClick={() => openAssignModal(idx)}
+                      disabled={loadingCandidates[step.tag]}
                     >
-                      Find
+                      {loadingCandidates[step.tag] ? "Loading..." : "Find"}
                     </button>
                   </div>
                 </div>
@@ -980,11 +1036,15 @@ export const Ticket = () => {
                   value={addTag}
                   onChange={(e) => setAddTag(e.target.value)}
                 >
-                  {PERSON_TAGS.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
+                  {loadingTags ? (
+                    <option>Loading tags...</option>
+                  ) : (
+                    personTags.map((t, index) => (
+                      <option key={index} value={t}>
+                        {t}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
               <div className="ticket-field">
@@ -1047,22 +1107,25 @@ export const Ticket = () => {
                 <div className="ticket-assign-list">
                   {(() => {
                     const s = steps[assignIndex];
-                    const candidates = CANDIDATES[s.tag] || [];
-                    return candidates.length ? (
-                      candidates.map((c) => (
+                    const candidates = candidatesByTag[s.tag] || [];
+                    return loadingCandidates[s.tag] ? (
+                      <div className="ticket-assign-item">
+                        Loading candidates...
+                      </div>
+                    ) : candidates.length ? (
+                      candidates.map((name, idx) => (
                         <div
-                          key={c.id}
+                          key={idx}
                           className="ticket-assign-item"
-                          onClick={() => handleAssign(c.id)}
+                          onClick={() => handleAssign(name)}
                         >
-                          <div>{c.name}</div>
-                          <div>
-                            ⭐{c.rating} • {c.availability}
-                          </div>
+                          <div>{name}</div>
                         </div>
                       ))
                     ) : (
-                      <div className="ticket-assign-item">No candidates</div>
+                      <div className="ticket-assign-item">
+                        No candidates available
+                      </div>
                     );
                   })()}
                 </div>
